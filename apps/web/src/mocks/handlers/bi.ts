@@ -1,13 +1,13 @@
 import { http, HttpResponse } from 'msw';
-import type {
-  BiCostsView,
-  BiCustomersView,
-  BiOverviewView,
-  BiRetentionView,
-  BiRevenueView,
-  BiSalesView,
-  BiUsageView,
-  OpportunityStage,
+import {
+  type BiCostsView,
+  type BiCustomersView,
+  type BiOverviewView,
+  type BiRetentionView,
+  type BiRevenueView,
+  type BiSalesView,
+  type BiUsageView,
+  type OpportunityStage,
 } from '@factory/shared';
 import { db } from '../db';
 import {
@@ -18,7 +18,14 @@ import {
   revenueRamp,
   trailingMonths,
 } from '../lib/finance-history';
-import { payrollBucket, supplierBucket } from '../lib/pnl-mapping';
+import {
+  activeCustomersCount,
+  activeMrrCents,
+  monthlyBurnCents,
+  monthlyCostBuckets,
+  monthlyCostCents,
+  startingCohortMrrCents,
+} from '../lib/aggregates';
 import {
   cac,
   grr,
@@ -30,25 +37,6 @@ import {
   runwayMonths,
   toBps,
 } from '../lib/saas-metrics';
-
-function currentActiveMrr(): number {
-  return db.customers.filter((c) => c.active).reduce((s, c) => s + c.mrrCents, 0);
-}
-
-function currentBuckets(): { cogs: number; rnd: number; sm: number; ga: number } {
-  const b = { cogs: 0, rnd: 0, sm: 0, ga: 0 };
-  for (const contract of db.contracts) {
-    if (contract.status !== 'active') continue;
-    const supplier = db.suppliers.find((s) => s.id === contract.supplierId);
-    b[supplierBucket(supplier?.category ?? 'other')] += contract.monthlyAmountCents;
-  }
-  for (const entry of db.payrollEntries) {
-    if (entry.cadence !== 'monthly') continue;
-    const person = db.people.find((p) => p.id === entry.personId);
-    b[payrollBucket(entry, person)] += entry.grossAmountCents;
-  }
-  return b;
-}
 
 function committedArrCents(): number {
   const won = db.opportunities.filter((o) => o.stage === 'close_won');
@@ -121,7 +109,7 @@ export const biHandlers = [
   }),
 
   http.get('/api/bi/revenue', () => {
-    const mrr = currentActiveMrr();
+    const mrr = activeMrrCents(db);
     const months = revenueRamp(6);
 
     const monthlySeries = months.map(({ month, factor }) => ({
@@ -193,8 +181,7 @@ export const biHandlers = [
   }),
 
   http.get('/api/bi/costs', () => {
-    const buckets = currentBuckets();
-    const monthlyCents = buckets.cogs + buckets.rnd + buckets.sm + buckets.ga;
+    const monthlyCents = monthlyCostCents(db);
 
     const byCategoryMap = new Map<string, number>();
     const bySourceMap = new Map<string, number>();
@@ -229,30 +216,34 @@ export const biHandlers = [
   }),
 
   http.get('/api/bi/overview', () => {
-    const mrr = currentActiveMrr();
+    const mrr = activeMrrCents(db);
     const arr = mrr * 12;
     const committed = committedArrCents();
 
-    const expansion = Math.round(mrr * MOVEMENT_ASSUMPTIONS.expansionRate);
-    const contraction = Math.round(mrr * MOVEMENT_ASSUMPTIONS.contractionRate);
-    const churn = Math.round(mrr * MOVEMENT_ASSUMPTIONS.revenueChurnRate);
-    const nrrFraction = nrr(mrr, expansion, contraction, churn);
-    const grrFraction = grr(mrr, contraction, churn);
+    // NRR/GRR: denominator is the STARTING-cohort MRR, not the current MRR.
+    // Prior code used `mrr` on both sides which cancels growth signal.
+    const startMrr = startingCohortMrrCents(db);
+    const months = 6;
+    const expansion = Math.round(startMrr * MOVEMENT_ASSUMPTIONS.expansionRate * months);
+    const contraction = Math.round(startMrr * MOVEMENT_ASSUMPTIONS.contractionRate * months);
+    const churn = Math.round(startMrr * MOVEMENT_ASSUMPTIONS.revenueChurnRate * months);
+    const nrrFraction = nrr(startMrr, expansion, contraction, churn);
+    const grrFraction = grr(startMrr, contraction, churn);
     const logoChurnFraction = MOVEMENT_ASSUMPTIONS.logoChurnRate;
 
-    const buckets = currentBuckets();
-    const monthlyCost = buckets.cogs + buckets.rnd + buckets.sm + buckets.ga;
+    const { buckets } = monthlyCostBuckets(db);
+    const monthlyCost = monthlyCostCents(db);
     const grossProfit = mrr - buckets.cogs;
     const grossMarginFraction = mrr === 0 ? 0 : grossProfit / mrr;
     const operatingIncome = grossProfit - (buckets.rnd + buckets.sm + buckets.ga);
     const opMarginPct = mrr === 0 ? 0 : (operatingIncome / mrr) * 100;
-    const monthlyBurn = Math.max(0, monthlyCost - mrr);
+    const monthlyBurn = monthlyBurnCents(db);
 
     const annualizedGrowthPct = (1 / 0.75 - 1) * 100 * (12 / 6);
 
     const smMonthly = buckets.sm;
     const smQuarter = smMonthly * 3;
-    const activeLogos = db.customers.filter((c) => c.active).length;
+    const activeLogos = activeCustomersCount(db);
     const newLogosThisQuarter = Math.max(1, Math.round(activeLogos / 4));
     const cacCents = Math.round(cac(smQuarter, newLogosThisQuarter));
 
@@ -382,11 +373,11 @@ export const biHandlers = [
       }))
       .sort((a, b) => (a.size < b.size ? -1 : 1));
 
-    const openStages: OpportunityStage[] = ['qualified', 'trial', 'decision'];
+    const openStages: OpportunityStage[] = ['qualified', 'trial', 'decision', 'proposal'];
     const openWeighted = db.opportunities
       .filter((o) => openStages.includes(o.stage))
       .reduce((s, o) => s + Math.round((o.amountCents * o.probability) / 100), 0);
-    const quarterlyTargetCents = Math.round(currentActiveMrr() * 12 * 0.3);
+    const quarterlyTargetCents = Math.round(activeMrrCents(db) * 12 * 0.3);
     const coverageRatio =
       quarterlyTargetCents === 0
         ? 0

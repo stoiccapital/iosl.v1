@@ -14,7 +14,10 @@ import { CommissionCalculatorPage } from './pages/crm/CommissionCalculatorPage';
 import { CustomersPage } from './pages/crm/CustomersPage';
 import { ForecastPage } from './features/crm/forecast/ForecastPage';
 import { LeadsPage } from './pages/crm/LeadsPage';
+import { AccountDetailPage } from './pages/crm/AccountDetailPage';
+import { CrmDashboardPage } from './pages/crm/CrmDashboardPage';
 import { OpportunitiesPage } from './pages/crm/OpportunitiesPage';
+import { OpportunityDetailPage } from './pages/crm/OpportunityDetailPage';
 import { ContractsPage } from './pages/suppliers/ContractsPage';
 import { SuppliersPage } from './pages/suppliers/SuppliersPage';
 import { CompensationPage } from './pages/hr/CompensationPage';
@@ -22,6 +25,7 @@ import { EmployeesPage } from './pages/hr/EmployeesPage';
 import { FreelancersPage } from './pages/hr/FreelancersPage';
 import { PayrollPage } from './pages/hr/PayrollPage';
 import { CostsPage } from './pages/finance/CostsPage';
+import { ExpensesPage } from './pages/finance/ExpensesPage';
 import { PnlPage } from './pages/finance/PnlPage';
 import { RevenuePage } from './pages/finance/RevenuePage';
 import { CandidatesPage } from './pages/recruiting/CandidatesPage';
@@ -87,10 +91,12 @@ function InternalRoutes() {
         <Route path="/tasks" element={<TasksPage />} />
 
         {/* CRM */}
-        <Route path="/crm" element={<Navigate to="/crm/leads" replace />} />
+        <Route path="/crm" element={<CrmDashboardPage />} />
         <Route path="/crm/leads" element={<LeadsPage />} />
         <Route path="/crm/accounts" element={<AccountsPage />} />
+        <Route path="/crm/accounts/:id" element={<AccountDetailPage />} />
         <Route path="/crm/opportunities" element={<OpportunitiesPage />} />
+        <Route path="/crm/opportunities/:id" element={<OpportunityDetailPage />} />
         <Route path="/crm/forecast" element={<ForecastPage />} />
         <Route path="/crm/commission-calculator" element={<CommissionCalculatorPage />} />
         <Route path="/crm/customers" element={<CustomersPage />} />
@@ -111,6 +117,7 @@ function InternalRoutes() {
         <Route path="/finance" element={<Navigate to="/finance/revenue" replace />} />
         <Route path="/finance/revenue" element={<RevenuePage />} />
         <Route path="/finance/costs" element={<CostsPage />} />
+        <Route path="/finance/expenses" element={<ExpensesPage />} />
         <Route path="/finance/pnl" element={<PnlPage />} />
 
         {/* Suppliers */}

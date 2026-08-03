@@ -17,12 +17,18 @@ import { useProducts } from '@/features/directory/hooks';
 import { subscriptionHooks } from '@/features/billing/hooks';
 
 const STATUS_LABEL: Record<SubscriptionStatus, string> = {
+  draft: 'Draft',
+  payment_link_sent: 'Payment link sent',
+  paid: 'Paid — awaiting activation',
   active: 'Active',
   past_due: 'Past due',
   cancelled: 'Cancelled',
   paused: 'Paused',
 };
 const STATUS_VARIANT: Record<SubscriptionStatus, 'default' | 'secondary' | 'outline' | 'destructive'> = {
+  draft: 'outline',
+  payment_link_sent: 'secondary',
+  paid: 'secondary',
   active: 'default',
   past_due: 'destructive',
   cancelled: 'outline',
@@ -80,7 +86,9 @@ export function SubscriptionsPage() {
                       {formatCurrencyEUR(s.mrrCents / 100)}
                     </TableCell>
                     <TableCell className="text-right font-mono tabular-nums">{formatDate(s.startedAt)}</TableCell>
-                    <TableCell className="text-right font-mono tabular-nums">{formatDate(s.nextInvoiceAt)}</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">
+                      {s.nextInvoiceAt ? formatDate(s.nextInvoiceAt) : '—'}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={STATUS_VARIANT[s.status]}>{STATUS_LABEL[s.status]}</Badge>
                     </TableCell>

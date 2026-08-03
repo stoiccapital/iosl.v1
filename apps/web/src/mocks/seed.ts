@@ -1,11 +1,18 @@
+import { lineTcvCents } from '@factory/shared';
 import type {
   Account,
+  AccountContact,
+  AccountContactNote,
+  AccountNote,
   Assignment,
   Candidate,
   Contract,
   Customer,
+  Expense,
+  ExpenseCategory,
   Lead,
   Opportunity,
+  OpportunityLine,
   PayrollEntry,
   Person,
   Position,
@@ -51,45 +58,121 @@ function seedPeople(): Person[] {
 
 function seedTasks(): Task[] {
   const now = iso();
+  const emptyDefaults = {
+    assigneeId: null,
+    dueAt: null,
+    relatedType: null,
+    relatedId: null,
+    doneAt: null,
+    doneById: null,
+    createdAt: now,
+    updatedAt: now,
+  };
   return [
     {
       id: uuid(),
       title: 'Wire up MSW mocks',
       description: 'Add handlers for /api/health and /api/tasks so the FE renders green.',
       status: 'done',
-      createdAt: now,
-      updatedAt: now,
+      ...emptyDefaults,
+      doneAt: now,
     },
     {
       id: uuid(),
       title: 'Design AppShell layout',
       description: 'Sidebar + topbar using only shadcn primitives.',
       status: 'in_progress',
-      createdAt: now,
-      updatedAt: now,
+      ...emptyDefaults,
     },
     {
       id: uuid(),
       title: 'Ship IOSL modules',
       description: 'Roll out CRM, Finance, Suppliers, HR, Recruiting, Projects, BI, Settings.',
       status: 'open',
-      createdAt: now,
-      updatedAt: now,
+      ...emptyDefaults,
     },
   ];
 }
 
 function seedAccounts(): Account[] {
   const now = iso();
-  const rows: Omit<Account, 'id' | 'createdAt' | 'updatedAt'>[] = [
-    { name: 'Northwind GmbH', industry: 'Logistics', size: '51-200', country: 'Germany', website: 'https://northwind.example.com' },
-    { name: 'Bluewave Studios', industry: 'Media', size: '11-50', country: 'Germany', website: 'https://bluewave.example.com' },
-    { name: 'Alpina AG', industry: 'Manufacturing', size: '201+', country: 'Switzerland', website: 'https://alpina.example.ch' },
-    { name: 'Poseidon SRL', industry: 'Shipping', size: '51-200', country: 'Italy', website: 'https://poseidon.example.it' },
-    { name: 'Ríos Consulting', industry: 'Consulting', size: '11-50', country: 'Spain', website: 'https://rios.example.es' },
-    { name: 'Nordic Retail AB', industry: 'Retail', size: '201+', country: 'Sweden', website: null },
+  const rows: Omit<
+    Account,
+    'id' | 'summaryNoteUpdatedAt' | 'summaryNoteUpdatedById' | 'createdAt' | 'updatedAt'
+  >[] = [
+    { name: 'Northwind GmbH',   industry: 'Logistics',     size: '51-200', country: 'Germany',     website: 'https://northwind.example.com', summaryNote: 'DACH logistics group. Rolling out to 3 depots first — start with the Munich hub. Legal contact is Karl.' },
+    { name: 'Bluewave Studios', industry: 'Media',         size: '11-50',  country: 'Germany',     website: 'https://bluewave.example.com',  summaryNote: 'Champion is Elias (Head of Ops). CFO signs anything above 5k€/mo.' },
+    { name: 'Alpina AG',        industry: 'Manufacturing', size: '201+',   country: 'Switzerland', website: 'https://alpina.example.ch',      summaryNote: 'Prefers CHF invoicing once they register a DE VAT ID. Long procurement cycle.' },
+    { name: 'Poseidon SRL',     industry: 'Shipping',      size: '51-200', country: 'Italy',       website: 'https://poseidon.example.it',    summaryNote: 'Reference customer. Happy with onboarding. Good candidate for a case study.' },
+    { name: 'Ríos Consulting',  industry: 'Consulting',    size: '11-50',  country: 'Spain',       website: 'https://rios.example.es',        summaryNote: 'Churned on price. Revisit if we add a small-team tier.' },
+    { name: 'Nordic Retail AB', industry: 'Retail',        size: '201+',   country: 'Sweden',      website: null,                             summaryNote: 'DE / SE / NO footprint. Nordic data-residency concerns — mention on next call.' },
   ];
-  return rows.map((r) => ({ ...r, id: uuid(), createdAt: now, updatedAt: now }));
+  return rows.map((r) => ({
+    ...r,
+    id: uuid(),
+    summaryNoteUpdatedAt: r.summaryNote ? now : null,
+    summaryNoteUpdatedById: null,
+    createdAt: now,
+    updatedAt: now,
+  }));
+}
+
+function seedAccountContacts(accounts: Account[]): AccountContact[] {
+  const now = iso();
+  const acc = (name: string) => accounts.find((a) => a.name === name)?.id;
+  const rows: Array<
+    Omit<
+      AccountContact,
+      'id' | 'summaryNoteUpdatedAt' | 'summaryNoteUpdatedById' | 'createdAt' | 'updatedAt'
+    > & { accountName: string }
+  > = [
+    { accountName: 'Northwind GmbH',   accountId: '', firstName: 'Karl',    lastName: 'Weber',     title: 'Head of Ops',       email: 'karl@northwind.example',   phone: '+49 89 1234 5678', summaryNote: 'Prefers email over calls. Available after 15:00 CET.', active: true },
+    { accountName: 'Northwind GmbH',   accountId: '', firstName: 'Anna',    lastName: 'Klein',     title: 'CFO',               email: 'anna@northwind.example',   phone: '+49 89 1234 5679', summaryNote: 'Signs anything > 10k€. Two-week internal review.',      active: true },
+    { accountName: 'Bluewave Studios', accountId: '', firstName: 'Elias',   lastName: 'Braun',     title: 'Head of Ops',       email: 'elias@bluewave.example',   phone: '+49 30 5555 0100', summaryNote: 'Champion for the deal. Wants monthly ops reviews.',     active: true },
+    { accountName: 'Alpina AG',        accountId: '', firstName: 'Nadine',  lastName: 'Reber',     title: 'Procurement',       email: 'nadine@alpina.example.ch', phone: '+41 44 555 0200',  summaryNote: 'Point person for legal + contract.',                    active: true },
+    { accountName: 'Alpina AG',        accountId: '', firstName: 'Markus',  lastName: 'Steiner',   title: 'CTO',               email: 'markus@alpina.example.ch', phone: '+41 44 555 0201',  summaryNote: 'Technical sponsor. Wants API examples up front.',       active: true },
+    { accountName: 'Poseidon SRL',     accountId: '', firstName: 'Chiara',  lastName: 'Ricci',     title: 'COO',               email: 'chiara@poseidon.example.it', phone: '+39 010 555 0300', summaryNote: 'Reference contact for case study.',                      active: true },
+    { accountName: 'Nordic Retail AB', accountId: '', firstName: 'Olof',    lastName: 'Andersson', title: 'Head of IT',        email: 'olof@nordicretail.example',  phone: '+46 8 555 0400',   summaryNote: 'GDPR/data-residency questions come from him.',           active: true },
+  ];
+  return rows
+    .filter((r) => acc(r.accountName))
+    .map((r) => {
+      const { accountName, ...rest } = r;
+      void accountName;
+      return {
+        ...rest,
+        accountId: acc(r.accountName)!,
+        id: uuid(),
+        summaryNoteUpdatedAt: rest.summaryNote ? now : null,
+        summaryNoteUpdatedById: null,
+        createdAt: now,
+        updatedAt: now,
+      };
+    });
+}
+
+function seedAccountContactNotes(
+  contacts: AccountContact[],
+  people: Person[],
+): AccountContactNote[] {
+  const author = people[0]?.id ?? null;
+  const daysAgo = (n: number) => new Date(Date.now() - n * 86400_000).toISOString();
+  const findContact = (email: string) => contacts.find((c) => c.email === email);
+  const rows: Array<{ email: string; body: string; daysAgo: number }> = [
+    { email: 'karl@northwind.example',    body: 'Call on Monday — Karl wants a live demo of the Samsara handoff.', daysAgo: 4 },
+    { email: 'anna@northwind.example',    body: 'Sent the CFO summary sheet. Waiting on procurement.',              daysAgo: 9 },
+    { email: 'elias@bluewave.example',    body: 'Confirmed budget for Q2. Kick-off scheduled.',                     daysAgo: 2 },
+    { email: 'nadine@alpina.example.ch',  body: 'Legal review kick-off next Tuesday.',                              daysAgo: 6 },
+  ];
+  return rows
+    .filter((r) => findContact(r.email))
+    .map((r) => ({
+      id: uuid(),
+      accountContactId: findContact(r.email)!.id,
+      body: r.body,
+      authorId: author,
+      createdAt: daysAgo(r.daysAgo),
+    }));
 }
 
 function seedLeads(): Lead[] {
@@ -109,15 +192,52 @@ function seedOpportunities(accounts: Account[], people: Person[]): Opportunity[]
   const owner = people.find((p) => p.role === 'Head of Sales')?.id ?? null;
   const acc = (name: string) => accounts.find((a) => a.name === name)!.id;
   const future = (days: number) => new Date(Date.now() + days * 86400_000).toISOString();
-  const rows: Omit<Opportunity, 'id' | 'createdAt' | 'updatedAt'>[] = [
-    { name: 'Northwind — Core rollout',       accountId: acc('Northwind GmbH'),    stage: 'qualified', amountCents: 8_400_000, probability: 20, expectedCloseDate: future(45), ownerId: owner },
-    { name: 'Bluewave — Analytics add-on',    accountId: acc('Bluewave Studios'),  stage: 'trial',      amountCents: 2_280_000, probability: 40, expectedCloseDate: future(20), ownerId: owner },
-    { name: 'Alpina — Enterprise agreement',  accountId: acc('Alpina AG'),         stage: 'decision',   amountCents: 24_000_000, probability: 70, expectedCloseDate: future(10), ownerId: owner },
-    { name: 'Poseidon — Automation add-on',   accountId: acc('Poseidon SRL'),      stage: 'close_won',  amountCents: 3_480_000, probability: 100, expectedCloseDate: future(-5), ownerId: owner },
-    { name: 'Ríos — Core annual',             accountId: acc('Ríos Consulting'),   stage: 'close_lost', amountCents: 1_800_000, probability: 0,   expectedCloseDate: future(-15), ownerId: owner },
-    { name: 'Nordic Retail — Multi-site',     accountId: acc('Nordic Retail AB'),  stage: 'qualified',  amountCents: 12_000_000, probability: 15, expectedCloseDate: future(60), ownerId: owner },
+
+  const line = (
+    productCode: OpportunityLine['productCode'],
+    quantity: number,
+    contractMonths: number,
+    billingCycle: OpportunityLine['billingCycle'],
+  ): OpportunityLine => ({ productCode, quantity, contractMonths, billingCycle });
+
+  type SeedRow = Omit<
+    Opportunity,
+    | 'id'
+    | 'amountCents'
+    | 'paymentLinkUrl'
+    | 'contractSigned'
+    | 'contractSignedAt'
+    | 'contractSignedById'
+    | 'contractDocumentUrl'
+    | 'createdAt'
+    | 'updatedAt'
+  >;
+  const rows: SeedRow[] = [
+    { name: 'Northwind — Core rollout',       accountId: acc('Northwind GmbH'),    stage: 'qualified',  lines: [line('fahrly_platform', 3, 12, 'monthly')], probability: 20,  expectedCloseDate: future(45),  ownerId: owner },
+    { name: 'Bluewave — Analytics add-on',    accountId: acc('Bluewave Studios'),  stage: 'trial',      lines: [line('samsara_integration', 2, 12, 'monthly')], probability: 40, expectedCloseDate: future(20),  ownerId: owner },
+    { name: 'Alpina — Enterprise agreement',  accountId: acc('Alpina AG'),         stage: 'decision',   lines: [line('fahrly_platform', 10, 12, 'monthly'), line('samsara_platform', 2, 12, 'monthly')], probability: 70,  expectedCloseDate: future(10),  ownerId: owner },
+    { name: 'Poseidon — Automation add-on',   accountId: acc('Poseidon SRL'),      stage: 'close_won',  lines: [line('samsara_platform', 1, 12, 'monthly')], probability: 100, expectedCloseDate: future(-5),  ownerId: owner },
+    { name: 'Ríos — Core annual',             accountId: acc('Ríos Consulting'),   stage: 'close_lost', lines: [line('fahrly_go', 3, 12, 'monthly')], probability: 0,   expectedCloseDate: future(-15), ownerId: owner },
+    { name: 'Nordic Retail — Multi-site',     accountId: acc('Nordic Retail AB'),  stage: 'qualified',  lines: [line('fahrly_platform', 5, 12, 'monthly')], probability: 15,  expectedCloseDate: future(60),  ownerId: owner },
   ];
-  return rows.map((r) => ({ ...r, id: uuid(), createdAt: now, updatedAt: now }));
+  return rows.map((r) => ({
+    ...r,
+    id: uuid(),
+    amountCents: r.lines.reduce(
+      (sum, l) => sum + lineTcvCents(l.productCode, l.quantity, l.contractMonths, l.billingCycle),
+      0,
+    ),
+    paymentLinkUrl: null,
+    contractSigned: r.stage === 'close_won',
+    contractSignedAt: r.stage === 'close_won' ? now : null,
+    contractSignedById: null,
+    contractDocumentUrl:
+      r.stage === 'close_won'
+        ? `https://storage.example.com/contracts/seed-${r.name.slice(0, 8).replace(/\W+/g, '')}.pdf`
+        : null,
+    createdAt: now,
+    updatedAt: now,
+  }));
 }
 
 function seedCustomers(accounts: Account[], products: Product[]): Customer[] {
@@ -135,6 +255,7 @@ function seedCustomers(accounts: Account[], products: Product[]): Customer[] {
     { accountId: acc('Nordic Retail AB'), productCode: prod('analytics'),  mrrCents: 1_900_00, since: iso(new Date('2023-01-01')), active: true,  churnedAt: null,           churnReason: null },
     { accountId: acc('Ríos Consulting'),  productCode: prod('core'),       mrrCents: 4_900_00, since: iso(new Date('2023-05-01')), active: false, churnedAt: daysAgo(12),   churnReason: 'price' },
     { accountId: acc('Alpina AG'),        productCode: prod('analytics'),  mrrCents: 1_900_00, since: iso(new Date('2023-11-01')), active: false, churnedAt: daysAgo(45),   churnReason: 'lack_of_use' },
+    { accountId: acc('Alpina AG'),        productCode: prod('core'),       mrrCents: 4_900_00, since: iso(new Date('2024-02-01')), active: false, churnedAt: daysAgo(21),   churnReason: 'payment_failed' },
   ];
   return rows.map((r) => ({ ...r, id: uuid(), createdAt: now, updatedAt: now }));
 }
@@ -322,7 +443,148 @@ function seedWebsites(): Website[] {
   return rows;
 }
 
+function seedContextualTasks(
+  accounts: Account[],
+  opportunities: Opportunity[],
+  currentUserId: string,
+): Task[] {
+  const now = iso();
+  const daysFromNow = (n: number) => new Date(Date.now() + n * 86400_000).toISOString();
+  const daysAgo = (n: number) => new Date(Date.now() - n * 86400_000).toISOString();
+  const acc = (name: string) => accounts.find((a) => a.name === name)?.id;
+  const opp = (name: string) => opportunities.find((o) => o.name === name)?.id;
+  const rows: Array<{
+    title: string;
+    description?: string;
+    status: 'open' | 'in_progress' | 'done';
+    assigneeId: string | null;
+    dueAt: string | null;
+    relatedType: 'account' | 'opportunity' | null;
+    relatedId: string | null;
+  }> = [
+    {
+      title: 'Send CFO summary sheet to Anna',
+      description: 'Include ROI slide and support-tier comparison.',
+      status: 'open',
+      assigneeId: currentUserId,
+      dueAt: daysFromNow(1),
+      relatedType: 'account',
+      relatedId: acc('Northwind GmbH') ?? null,
+    },
+    {
+      title: 'Draft renewal proposal — Bluewave',
+      status: 'in_progress',
+      assigneeId: currentUserId,
+      dueAt: daysFromNow(3),
+      relatedType: 'opportunity',
+      relatedId: opp('Bluewave — Analytics add-on') ?? null,
+    },
+    {
+      title: 'Confirm data-residency answer with Olof',
+      status: 'open',
+      assigneeId: currentUserId,
+      dueAt: daysFromNow(5),
+      relatedType: 'account',
+      relatedId: acc('Nordic Retail AB') ?? null,
+    },
+    {
+      title: 'Review Alpina legal red-lines',
+      status: 'open',
+      assigneeId: currentUserId,
+      dueAt: daysAgo(1),
+      relatedType: 'opportunity',
+      relatedId: opp('Alpina — Enterprise agreement') ?? null,
+    },
+    {
+      title: 'Prep Poseidon case-study interview',
+      status: 'done',
+      assigneeId: currentUserId,
+      dueAt: daysAgo(10),
+      relatedType: 'account',
+      relatedId: acc('Poseidon SRL') ?? null,
+    },
+  ];
+  return rows
+    .filter((r) => r.relatedId !== null)
+    .map((r) => ({
+      id: uuid(),
+      title: r.title,
+      description: r.description ?? null,
+      status: r.status,
+      assigneeId: r.assigneeId,
+      dueAt: r.dueAt,
+      relatedType: r.relatedType,
+      relatedId: r.relatedId,
+      doneAt: r.status === 'done' ? now : null,
+      doneById: r.status === 'done' ? currentUserId : null,
+      createdAt: now,
+      updatedAt: now,
+    }));
+}
+
+function seedExpenses(people: Person[], suppliers: Supplier[]): Expense[] {
+  const now = iso();
+  const paidBy = people[0]?.id ?? null;
+  const daysAgo = (n: number) => new Date(Date.now() - n * 86400_000).toISOString();
+  const sup = (name: string) => suppliers.find((s) => s.name === name);
+  type SeedExpense = {
+    description: string;
+    supplierName?: string;
+    vendorName: string;
+    category: ExpenseCategory;
+    amountCents: number;
+    occurredAt: string;
+    note?: string;
+  };
+  const rows: SeedExpense[] = [
+    { description: 'Client dinner with Northwind',       vendorName: 'Restaurant Neni',   category: 'meals',    amountCents: 148_00, occurredAt: daysAgo(3) },
+    { description: 'Uber to Bluewave workshop',          vendorName: 'Uber',              category: 'travel',   amountCents: 24_50,  occurredAt: daysAgo(2) },
+    { description: 'Figma seat — designer contractor',    vendorName: 'Figma',             category: 'software', amountCents: 15_00,  occurredAt: daysAgo(10) },
+    { description: 'Annual firewall review',             supplierName: 'Weberpartners', vendorName: 'Weberpartners',    category: 'legal',    amountCents: 620_00, occurredAt: daysAgo(6) },
+    { description: 'AdWords test — enterprise vertical', supplierName: 'Adwords',       vendorName: 'Adwords',           category: 'marketing', amountCents: 350_00, occurredAt: daysAgo(1) },
+  ];
+  return rows.map((r) => {
+    const supplier = r.supplierName ? sup(r.supplierName) : undefined;
+    return {
+      id: uuid(),
+      description: r.description,
+      supplierId: supplier?.id ?? null,
+      vendorName: r.vendorName,
+      category: r.category,
+      amountCents: r.amountCents,
+      occurredAt: r.occurredAt,
+      paidById: paidBy,
+      note: r.note ?? null,
+      createdAt: now,
+      updatedAt: now,
+    };
+  });
+}
+
 import * as extra from './seed-extra';
+
+function seedAccountNotes(accounts: Account[], people: Person[]): AccountNote[] {
+  const author = people[0]?.id ?? null;
+  const daysAgo = (n: number) => new Date(Date.now() - n * 86400_000).toISOString();
+  const acc = (name: string) => accounts.find((a) => a.name === name)?.id;
+  const rows: Array<{ name: string; body: string; daysAgo: number }> = [
+    { name: 'Alpina AG',        body: 'Legal review flagged the Samsara integration clause. Anna signing next week.', daysAgo: 3 },
+    { name: 'Alpina AG',        body: 'Preferred to be invoiced in CHF once the entity registers a German VAT ID.', daysAgo: 12 },
+    { name: 'Northwind GmbH',   body: 'Rolling out core to 3 depots first. Watch out for shift handoff pattern.',    daysAgo: 5 },
+    { name: 'Bluewave Studios', body: 'Champion is Elias; CFO must approve any amount over 5k€ / month.',            daysAgo: 8 },
+    { name: 'Nordic Retail AB', body: 'Multi-country footprint — DE, SE, NO. Ask about GDPR + Nordic data residency.', daysAgo: 1 },
+    { name: 'Poseidon SRL',     body: 'Contract signed; happy with onboarding. Good reference candidate.',           daysAgo: 20 },
+  ];
+  return rows
+    .filter((r) => acc(r.name))
+    .map((r) => ({
+      id: uuid(),
+      accountId: acc(r.name)!,
+      body: r.body,
+      authorId: author,
+      createdAt: daysAgo(r.daysAgo),
+    }));
+}
 
 let seeded = false;
 export function seedDb() {
@@ -331,6 +593,9 @@ export function seedDb() {
   db.people = seedPeople();
   db.tasks = seedTasks();
   db.accounts = seedAccounts();
+  db.accountNotes = seedAccountNotes(db.accounts, db.people);
+  db.accountContacts = seedAccountContacts(db.accounts);
+  db.accountContactNotes = seedAccountContactNotes(db.accountContacts, db.people);
   db.leads = seedLeads();
   db.opportunities = seedOpportunities(db.accounts, db.people);
   db.customers = seedCustomers(db.accounts, db.products);
@@ -343,6 +608,11 @@ export function seedDb() {
   db.assignments = seedAssignments(db.projects, db.people);
   db.timeEntries = seedTimeEntries(db.assignments);
   db.users = seedUsers({ ...db.currentUser, active: true, createdAt: iso(), updatedAt: iso() });
+  db.tasks = [
+    ...db.tasks,
+    ...seedContextualTasks(db.accounts, db.opportunities, db.currentUser.id),
+  ];
+  db.expenses = seedExpenses(db.people, db.suppliers);
 
   db.tickets = extra.seedTickets(db.accounts, db.people);
   db.subscriptions = extra.seedSubscriptions(db.customers);

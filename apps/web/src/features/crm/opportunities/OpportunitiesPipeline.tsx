@@ -1,9 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { OPPORTUNITY_STAGE_ORDER, type Opportunity } from '@factory/shared';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DataTableShell } from '@/components/data/DataTableShell';
+import { TableToolbar } from '@/components/data/TableToolbar';
 import { formatCurrencyEUR } from '@/lib/format';
+import { accountHooks } from '../accounts/hooks';
 import { opportunityHooks } from './hooks';
 import { OpportunitiesTable } from './OpportunitiesTable';
 import { STAGE_LABEL } from './stage';
@@ -23,13 +25,37 @@ function stageTotals(rows: Opportunity[]) {
 
 export function OpportunitiesPipeline() {
   const query = opportunityHooks.useList();
-  const totals = useMemo(() => stageTotals(query.data ?? []), [query.data]);
+  const accounts = accountHooks.useList();
+  const [q, setQ] = useState('');
+
+  const filtered = useMemo(() => {
+    const rows = query.data ?? [];
+    if (!q.trim()) return rows;
+    const needle = q.toLowerCase();
+    const accountName = new Map(
+      (accounts.data ?? []).map((a) => [a.id, a.name.toLowerCase()] as const),
+    );
+    return rows.filter((o) => {
+      if (o.name.toLowerCase().includes(needle)) return true;
+      const acc = accountName.get(o.accountId);
+      if (acc && acc.includes(needle)) return true;
+      return false;
+    });
+  }, [q, query.data, accounts.data]);
+
+  const totals = useMemo(() => stageTotals(filtered), [filtered]);
 
   return (
     <DataTableShell {...query} emptyMessage="No opportunities yet.">
-      {(all) => (
+      {() => (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
+          <TableToolbar
+            query={q}
+            onQueryChange={setQ}
+            placeholder="Filter by name or account…"
+          />
+
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-6">
             {OPPORTUNITY_STAGE_ORDER.map((s) => {
               const t = totals.get(s)!;
               return (
@@ -60,11 +86,11 @@ export function OpportunitiesPipeline() {
               ))}
             </TabsList>
             <TabsContent value="all">
-              <OpportunitiesTable rows={all} />
+              <OpportunitiesTable rows={filtered} />
             </TabsContent>
             {OPPORTUNITY_STAGE_ORDER.map((s) => (
               <TabsContent key={s} value={s}>
-                <OpportunitiesTable rows={all.filter((o) => o.stage === s)} />
+                <OpportunitiesTable rows={filtered.filter((o) => o.stage === s)} />
               </TabsContent>
             ))}
           </Tabs>

@@ -14,12 +14,13 @@ import {
 import { formatCurrencyEUR, formatDate, formatNumber, formatPercent } from '@/lib/format';
 import { useChurn } from '@/features/crm/churn/hooks';
 
-const REASON_LABEL: Record<ChurnReason | 'other', string> = {
+const REASON_LABEL: Record<ChurnReason, string> = {
   price: 'Price',
   competitor: 'Competitor',
   lack_of_use: 'Lack of use',
   missing_features: 'Missing features',
   shutdown: 'Customer shutdown',
+  payment_failed: 'Payment failed (involuntary)',
   other: 'Other',
 };
 

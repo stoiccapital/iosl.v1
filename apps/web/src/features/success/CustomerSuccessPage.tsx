@@ -97,7 +97,7 @@ export function CustomerSuccessPage() {
   const upcomingRenewals = useMemo(() => {
     const now = Date.now();
     return (subs.data ?? [])
-      .filter((s) => s.status === 'active')
+      .filter((s): s is typeof s & { nextInvoiceAt: string } => s.status === 'active' && s.nextInvoiceAt !== null)
       .map((s) => ({
         sub: s,
         daysUntil: Math.floor((new Date(s.nextInvoiceAt).getTime() - now) / 86400_000),

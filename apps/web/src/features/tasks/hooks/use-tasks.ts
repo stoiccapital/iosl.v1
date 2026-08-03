@@ -4,15 +4,32 @@ import {
   TaskSchema,
   type CreateTaskInput,
   type Task,
+  type TaskRelatedType,
   type UpdateTaskInput,
 } from '@factory/shared';
 import { api } from '@/lib/api-client';
 
-const listKey = () => ['tasks', 'list'] as const;
+export type TaskListFilters = {
+  assigneeId?: string | null;
+  status?: 'open' | 'in_progress' | 'done' | null;
+  relatedType?: TaskRelatedType | null;
+  relatedId?: string | null;
+};
+
+const listKey = (filters?: TaskListFilters) =>
+  ['tasks', 'list', filters ?? {}] as const;
 const detailKey = (id: string) => ['tasks', 'detail', id] as const;
 
-async function fetchTasks(): Promise<Task[]> {
-  const raw = await api.get<unknown>('/tasks');
+async function fetchTasks(filters?: TaskListFilters): Promise<Task[]> {
+  const params = new URLSearchParams();
+  if (filters?.assigneeId) params.set('assigneeId', filters.assigneeId);
+  if (filters?.status) params.set('status', filters.status);
+  if (filters?.relatedType && filters.relatedId) {
+    params.set('relatedType', filters.relatedType);
+    params.set('relatedId', filters.relatedId);
+  }
+  const qs = params.toString();
+  const raw = await api.get<unknown>(qs ? `/tasks?${qs}` : '/tasks');
   return TaskListSchema.parse(raw);
 }
 
@@ -21,8 +38,19 @@ async function fetchTask(id: string): Promise<Task> {
   return TaskSchema.parse(raw);
 }
 
-export function useTasks() {
-  return useQuery({ queryKey: listKey(), queryFn: fetchTasks });
+export function useTasks(filters?: TaskListFilters) {
+  return useQuery({
+    queryKey: listKey(filters),
+    queryFn: () => fetchTasks(filters),
+  });
+}
+
+export function useRelatedTasks(relatedType: TaskRelatedType, relatedId: string | undefined) {
+  return useQuery({
+    queryKey: listKey({ relatedType, relatedId: relatedId ?? null }),
+    queryFn: () => fetchTasks({ relatedType, relatedId: relatedId ?? null }),
+    enabled: Boolean(relatedId),
+  });
 }
 
 export function useTask(id: string | undefined) {

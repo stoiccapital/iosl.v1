@@ -7,7 +7,12 @@ Scope: everything in `apps/web/`. Read `../../CLAUDE.md` first for repository-wi
 IOSL is the internal operating system for the software company — a single React SPA over a mocked API. It groups seven business modules plus Settings:
 
 - **CRM** — Leads, Accounts, Opportunities (stages: Qualified → Trial → Decision → Close Won → Close Lost), Customers
-- **Finance** — Revenue, Costs (costs are consumed from Suppliers + HR/Payroll, never entered manually here)
+- **Finance** — Revenue, Costs, Expenses, P&L.
+  Ownership split (one entity, one owner, one input surface):
+    - **Recurring vendor spend** (SaaS subs, AWS, rent) → entered in **Suppliers → Contracts**. Finance/Costs derives.
+    - **Salaries + freelancer invoices** → entered in **HR → Payroll**. Finance/Costs derives.
+    - **One-off ad-hoc costs** (a taxi, a book, a single-seat SaaS) → entered in **Finance → Expenses**. This is the *only* cost surface where a user types directly into Finance.
+  Everything else in Finance (Revenue, Costs aggregate, P&L, BI) is *derived* — never written directly.
 - **Supplier Management** — Suppliers, Contracts; emits cost rows into the shared store
 - **HR** — Employees, Freelancers, Payroll; emits cost rows into the shared store
 - **Recruiting** — Positions, Candidates (stages: Applied → Screen → Interview → Offer → Hired → Rejected)

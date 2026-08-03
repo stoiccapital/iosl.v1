@@ -7,8 +7,22 @@ import {
   BiRevenueViewSchema,
   BiSalesViewSchema,
   BiUsageViewSchema,
+  DashboardViewSchema,
 } from '@factory/shared';
 import { api } from '@/lib/api-client';
+
+/**
+ * Single call powering the executive dashboard. All 20 headline metrics come
+ * back in one response, server-aggregated + 15-min cached, so the FE no longer
+ * fans out 10 list requests and re-computes sums in the browser.
+ */
+export function useDashboard() {
+  return useQuery({
+    queryKey: ['bi', 'dashboard'],
+    queryFn: async () => DashboardViewSchema.parse(await api.get<unknown>('/bi/dashboard')),
+    staleTime: 60_000,
+  });
+}
 
 export function useBiCustomers() {
   return useQuery({

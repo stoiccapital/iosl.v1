@@ -1,14 +1,23 @@
 import { http, HttpResponse } from 'msw';
-import type {
-  CostSummary,
-  PnlMonth,
-  PnlView,
-  RevenueSummary,
-  SupplierCategory,
+import {
+  type CostSummary,
+  type PnlMonth,
+  type PnlView,
+  type RevenueSummary,
+  type SupplierCategory,
 } from '@factory/shared';
 import { db } from '../db';
 import { costRamp, projectMonthly, revenueRamp } from '../lib/finance-history';
-import { payrollBucket, supplierBucket } from '../lib/pnl-mapping';
+import { monthlyCostBuckets } from '../lib/aggregates';
+
+function currentMonthKey(): string {
+  const d = new Date();
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+function isSameMonth(iso: string): boolean {
+  return iso.slice(0, 7) === currentMonthKey();
+}
 
 export const financeHandlers = [
   http.get('/api/finance/revenue', () => {
@@ -90,6 +99,37 @@ export const financeHandlers = [
       });
     }
 
+    // Paid compensation events (commissions, bonuses) hit this month's cost
+    // the same way the P&L handler counts them — otherwise the dashboard
+    // "Monthly cost" understates by whatever comp was paid this cycle.
+    for (const event of db.compensationEvents) {
+      if (event.status !== 'paid') continue;
+      const person = db.people.find((p) => p.id === event.personId);
+      const category = person?.type === 'freelancer' ? 'contractor' : 'salary';
+      items.push({
+        id: `compensation:${event.id}`,
+        source: 'payroll',
+        sourceRef: person ? `${person.firstName} ${person.lastName}` : '—',
+        category,
+        monthlyCents: event.amountCents,
+        description: event.note || 'Compensation event',
+      });
+    }
+
+    // One-off expenses occurring in the current month contribute to this
+    // month's cost snapshot. Recurring vendor spend stays in Suppliers.
+    for (const exp of db.expenses) {
+      if (!isSameMonth(exp.occurredAt)) continue;
+      items.push({
+        id: `expense:${exp.id}`,
+        source: 'expense',
+        sourceRef: exp.vendorName || exp.description,
+        category: exp.category,
+        monthlyCents: exp.amountCents,
+        description: exp.description,
+      });
+    }
+
     const monthlyCents = items.reduce((n, i) => n + i.monthlyCents, 0);
 
     const byCategoryMap = new Map<string, number>();
@@ -119,34 +159,11 @@ export const financeHandlers = [
     const monthsParam = Number.parseInt(url.searchParams.get('months') ?? '6', 10);
     const n = Math.max(1, Math.min(12, Number.isFinite(monthsParam) ? monthsParam : 6));
 
-    // Current-month building blocks
+    // Current-month building blocks — reuse the canonical aggregate so P&L
+    // and the dashboard's "Monthly cost" never disagree.
     const activeCustomers = db.customers.filter((c) => c.active);
     const currentRevenue = activeCustomers.reduce((s, c) => s + c.mrrCents, 0);
-
-    const currentBuckets = { cogs: 0, rnd: 0, sm: 0, ga: 0 };
-    for (const contract of db.contracts) {
-      if (contract.status !== 'active') continue;
-      const supplier = db.suppliers.find((s) => s.id === contract.supplierId);
-      const bucket = supplierBucket(supplier?.category ?? 'other');
-      currentBuckets[bucket] += contract.monthlyAmountCents;
-    }
-    for (const entry of db.payrollEntries) {
-      if (entry.cadence !== 'monthly') continue;
-      const person = db.people.find((p) => p.id === entry.personId);
-      const bucket = payrollBucket(entry, person);
-      currentBuckets[bucket] += entry.grossAmountCents;
-    }
-    // Paid compensation events add to the same P&L bucket as the person's
-    // regular payroll — a sales-rep commission hits S&M, etc.
-    for (const event of db.compensationEvents) {
-      if (event.status !== 'paid') continue;
-      const person = db.people.find((p) => p.id === event.personId);
-      const bucket = payrollBucket(
-        { cadence: 'one_time' } as never,
-        person,
-      );
-      currentBuckets[bucket] += event.amountCents;
-    }
+    const { buckets: currentBuckets } = monthlyCostBuckets(db);
 
     const revenue = revenueRamp(n);
     const cost = costRamp(n);

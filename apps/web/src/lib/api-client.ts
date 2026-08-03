@@ -11,13 +11,25 @@ class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+export type RequestOptions = {
+  /**
+   * Send an `Idempotency-Key` header. The BE (real or MSW-mocked) is expected
+   * to short-circuit duplicate requests with the same key within a window,
+   * returning the original response. Safe to set on retryable mutations.
+   */
+  idempotencyKey?: string;
+};
+
+async function request<T>(path: string, init?: RequestInit, opts?: RequestOptions): Promise<T> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(init?.headers as Record<string, string> | undefined),
+  };
+  if (opts?.idempotencyKey) headers['Idempotency-Key'] = opts.idempotencyKey;
+
   const res = await fetch(`${BASE_URL}${path}`, {
     ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...init?.headers,
-    },
+    headers,
     credentials: 'include',
   });
 
@@ -39,9 +51,12 @@ function withBody(method: string, body?: unknown): RequestInit {
 
 export const api = {
   get: <T>(path: string) => request<T>(path, { method: 'GET' }),
-  post: <T>(path: string, body?: unknown) => request<T>(path, withBody('POST', body)),
-  put: <T>(path: string, body?: unknown) => request<T>(path, withBody('PUT', body)),
-  patch: <T>(path: string, body?: unknown) => request<T>(path, withBody('PATCH', body)),
+  post: <T>(path: string, body?: unknown, opts?: RequestOptions) =>
+    request<T>(path, withBody('POST', body), opts),
+  put: <T>(path: string, body?: unknown, opts?: RequestOptions) =>
+    request<T>(path, withBody('PUT', body), opts),
+  patch: <T>(path: string, body?: unknown, opts?: RequestOptions) =>
+    request<T>(path, withBody('PATCH', body), opts),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
 };
 

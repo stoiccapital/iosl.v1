@@ -1,10 +1,14 @@
 import { z } from 'zod';
 import { MoneyCentsSchema } from '../common/money';
+import { RoleSchema } from '../common/auth';
 
 export const BillingCycleSchema = z.enum(['monthly', 'annual']);
 export type BillingCycle = z.infer<typeof BillingCycleSchema>;
 
 export const SubscriptionStatusSchema = z.enum([
+  'draft',
+  'payment_link_sent',
+  'paid',
   'active',
   'past_due',
   'cancelled',
@@ -16,11 +20,16 @@ export const SubscriptionSchema = z.object({
   id: z.string().uuid(),
   customerId: z.string().uuid(),
   productCode: z.string(),
+  opportunityId: z.string().uuid().nullable(),
+  quantity: z.number().int().min(1),
   mrrCents: MoneyCentsSchema,
   billingCycle: BillingCycleSchema,
   status: SubscriptionStatusSchema,
+  paymentLinkUrl: z.string().url().nullable(),
   startedAt: z.string().datetime(),
-  nextInvoiceAt: z.string().datetime(),
+  nextInvoiceAt: z.string().datetime().nullable(),
+  activatedAt: z.string().datetime().nullable(),
+  activatedById: z.string().uuid().nullable(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });
@@ -29,6 +38,8 @@ export type Subscription = z.infer<typeof SubscriptionSchema>;
 export const CreateSubscriptionInputSchema = SubscriptionSchema.pick({
   customerId: true,
   productCode: true,
+  opportunityId: true,
+  quantity: true,
   mrrCents: true,
   billingCycle: true,
   status: true,
@@ -36,6 +47,36 @@ export const CreateSubscriptionInputSchema = SubscriptionSchema.pick({
   nextInvoiceAt: true,
 });
 export type CreateSubscriptionInput = z.infer<typeof CreateSubscriptionInputSchema>;
+
+/* ---------- Subscription state transitions (audit log) ---------- */
+
+export const SubscriptionTransitionSchema = z.object({
+  id: z.string().uuid(),
+  subscriptionId: z.string().uuid(),
+  fromStatus: SubscriptionStatusSchema.nullable(),
+  toStatus: SubscriptionStatusSchema,
+  actorUserId: z.string().uuid().nullable(),
+  actorRole: RoleSchema.nullable(),
+  note: z.string().nullable(),
+  at: z.string().datetime(),
+});
+export type SubscriptionTransition = z.infer<typeof SubscriptionTransitionSchema>;
+
+/* ---------- Opportunity close flow ---------- */
+
+export const OpportunityCloseInputSchema = z
+  .object({
+    note: z.string().nullable().optional(),
+  })
+  .default({});
+export type OpportunityCloseInput = z.infer<typeof OpportunityCloseInputSchema>;
+
+export const OpportunityCloseResultSchema = z.object({
+  opportunityId: z.string().uuid(),
+  subscriptions: z.array(SubscriptionSchema),
+  paymentLinkUrl: z.string().url(),
+});
+export type OpportunityCloseResult = z.infer<typeof OpportunityCloseResultSchema>;
 
 /* ---------- Invoices ---------- */
 

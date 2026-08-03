@@ -1,24 +1,64 @@
 import {
+  Activity,
+  AlertTriangle,
+  ArrowDownRight,
+  ArrowUpRight,
   BarChart3,
+  Bell,
   BookOpen,
   Briefcase,
+  BriefcaseBusiness,
   Building2,
+  Calculator,
+  ClipboardList,
+  Clock,
+  Coins,
+  FileSignature,
+  FileText,
+  FolderKanban,
+  Gauge,
+  Home,
+  Globe,
+  Heart,
+  History,
+  KeyRound,
   LaptopMinimal,
   LayoutDashboard,
+  LifeBuoy,
+  Map,
   Megaphone,
   Package,
+  Receipt,
+  RefreshCw,
+  Repeat,
+  Rocket,
   Scale,
   Settings,
+  ShieldCheck,
+  ShoppingCart,
+  SlidersHorizontal,
+  Sparkles,
+  Star,
   Target,
+  TrendingDown,
+  TrendingUp,
   Truck,
+  UserCog,
+  UserMinus,
   UserPlus,
+  UserSearch,
   Users,
   Wallet,
   type LucideIcon,
 } from 'lucide-react';
 import type { ModuleKey } from '@factory/shared';
 
-export type NavChild = { to: string; label: string; children?: NavChild[] };
+export type NavChild = {
+  to: string;
+  label: string;
+  icon?: LucideIcon;
+  children?: NavChild[];
+};
 
 export type NavGroup = {
   key: ModuleKey;
@@ -41,22 +81,24 @@ export const NAV_GROUPS: NavGroup[] = [
     icon: Users,
     to: '/crm',
     children: [
-      { to: '/crm/leads', label: 'Leads' },
-      { to: '/crm/accounts', label: 'Accounts' },
-      { to: '/crm/opportunities', label: 'Opportunities' },
-      { to: '/crm/forecast', label: 'Forecast' },
-      { to: '/crm/commission-calculator', label: 'Commission calculator' },
+      { to: '/crm', label: 'Overview', icon: Home },
+      { to: '/crm/leads', label: 'Leads', icon: Sparkles },
+      { to: '/crm/accounts', label: 'Accounts', icon: Building2 },
+      { to: '/crm/opportunities', label: 'Opportunities', icon: Target },
       {
         to: '/crm/customers',
         label: 'Customers',
+        icon: Users,
         children: [
-          { to: '/success', label: 'Success' },
-          { to: '/support', label: 'Support' },
-          { to: '/billing/subscriptions', label: 'Subscriptions' },
-          { to: '/billing/invoices', label: 'Invoices' },
-          { to: '/crm/churn', label: 'Churn' },
+          { to: '/success', label: 'Success', icon: Star },
+          { to: '/support', label: 'Support', icon: LifeBuoy },
+          { to: '/billing/subscriptions', label: 'Subscriptions', icon: Repeat },
+          { to: '/billing/invoices', label: 'Invoices', icon: Receipt },
+          { to: '/crm/churn', label: 'Churn', icon: UserMinus },
         ],
       },
+      { to: '/crm/forecast', label: 'Forecast', icon: TrendingUp },
+      { to: '/crm/commission-calculator', label: 'Commission calculator', icon: Calculator },
     ],
   },
   {
@@ -65,9 +107,10 @@ export const NAV_GROUPS: NavGroup[] = [
     icon: Wallet,
     to: '/finance',
     children: [
-      { to: '/finance/revenue', label: 'Revenue' },
-      { to: '/finance/costs', label: 'Costs' },
-      { to: '/finance/pnl', label: 'P&L' },
+      { to: '/finance/revenue', label: 'Revenue', icon: ArrowUpRight },
+      { to: '/finance/costs', label: 'Costs', icon: ArrowDownRight },
+      { to: '/finance/expenses', label: 'Expenses', icon: Receipt },
+      { to: '/finance/pnl', label: 'P&L', icon: BarChart3 },
     ],
   },
   {
@@ -76,8 +119,8 @@ export const NAV_GROUPS: NavGroup[] = [
     icon: Truck,
     to: '/suppliers',
     children: [
-      { to: '/suppliers', label: 'Suppliers' },
-      { to: '/suppliers/contracts', label: 'Contracts' },
+      { to: '/suppliers', label: 'Suppliers', icon: Package },
+      { to: '/suppliers/contracts', label: 'Contracts', icon: FileSignature },
     ],
   },
   {
@@ -86,10 +129,10 @@ export const NAV_GROUPS: NavGroup[] = [
     icon: Building2,
     to: '/hr',
     children: [
-      { to: '/hr/employees', label: 'Employees' },
-      { to: '/hr/freelancers', label: 'Freelancers' },
-      { to: '/hr/payroll', label: 'Payroll' },
-      { to: '/hr/compensation', label: 'Compensation' },
+      { to: '/hr/employees', label: 'Employees', icon: Users },
+      { to: '/hr/freelancers', label: 'Freelancers', icon: UserCog },
+      { to: '/hr/payroll', label: 'Payroll', icon: Wallet },
+      { to: '/hr/compensation', label: 'Compensation', icon: Coins },
     ],
   },
   {
@@ -98,8 +141,8 @@ export const NAV_GROUPS: NavGroup[] = [
     icon: UserPlus,
     to: '/recruiting',
     children: [
-      { to: '/recruiting/positions', label: 'Positions' },
-      { to: '/recruiting/candidates', label: 'Candidates' },
+      { to: '/recruiting/positions', label: 'Positions', icon: BriefcaseBusiness },
+      { to: '/recruiting/candidates', label: 'Candidates', icon: UserSearch },
     ],
   },
   {
@@ -108,8 +151,8 @@ export const NAV_GROUPS: NavGroup[] = [
     icon: Briefcase,
     to: '/projects',
     children: [
-      { to: '/projects', label: 'Projects' },
-      { to: '/projects/time', label: 'Time' },
+      { to: '/projects', label: 'Projects', icon: FolderKanban },
+      { to: '/projects/time', label: 'Time', icon: Clock },
     ],
   },
   {
@@ -118,9 +161,9 @@ export const NAV_GROUPS: NavGroup[] = [
     icon: Package,
     to: '/product',
     children: [
-      { to: '/product/roadmap', label: 'Roadmap' },
-      { to: '/product/releases', label: 'Releases' },
-      { to: '/product/incidents', label: 'Incidents' },
+      { to: '/product/roadmap', label: 'Roadmap', icon: Map },
+      { to: '/product/releases', label: 'Releases', icon: Rocket },
+      { to: '/product/incidents', label: 'Incidents', icon: AlertTriangle },
     ],
   },
   {
@@ -129,9 +172,9 @@ export const NAV_GROUPS: NavGroup[] = [
     icon: Megaphone,
     to: '/marketing',
     children: [
-      { to: '/marketing/campaigns', label: 'Campaigns' },
-      { to: '/marketing/content', label: 'Content' },
-      { to: '/marketing/websites', label: 'Websites' },
+      { to: '/marketing/campaigns', label: 'Campaigns', icon: Megaphone },
+      { to: '/marketing/content', label: 'Content', icon: FileText },
+      { to: '/marketing/websites', label: 'Websites', icon: Globe },
     ],
   },
   {
@@ -146,8 +189,8 @@ export const NAV_GROUPS: NavGroup[] = [
     icon: LaptopMinimal,
     to: '/it',
     children: [
-      { to: '/it/devices', label: 'Devices' },
-      { to: '/it/licenses', label: 'Licenses' },
+      { to: '/it/devices', label: 'Devices', icon: LaptopMinimal },
+      { to: '/it/licenses', label: 'Licenses', icon: KeyRound },
     ],
   },
   {
@@ -168,13 +211,13 @@ export const NAV_GROUPS: NavGroup[] = [
     icon: BarChart3,
     to: '/bi',
     children: [
-      { to: '/bi/overview', label: 'Overview' },
-      { to: '/bi/revenue', label: 'Revenue' },
-      { to: '/bi/retention', label: 'Retention' },
-      { to: '/bi/sales', label: 'Sales' },
-      { to: '/bi/customers', label: 'Customers' },
-      { to: '/bi/usage', label: 'Usage' },
-      { to: '/bi/costs', label: 'Costs' },
+      { to: '/bi/overview', label: 'Overview', icon: Gauge },
+      { to: '/bi/revenue', label: 'Revenue', icon: TrendingUp },
+      { to: '/bi/retention', label: 'Retention', icon: RefreshCw },
+      { to: '/bi/sales', label: 'Sales', icon: ShoppingCart },
+      { to: '/bi/customers', label: 'Customers', icon: Heart },
+      { to: '/bi/usage', label: 'Usage', icon: Activity },
+      { to: '/bi/costs', label: 'Costs', icon: TrendingDown },
     ],
   },
   {
@@ -183,13 +226,13 @@ export const NAV_GROUPS: NavGroup[] = [
     icon: Settings,
     to: '/settings',
     children: [
-      { to: '/settings', label: 'General' },
-      { to: '/settings/users', label: 'Users' },
-      { to: '/settings/roles', label: 'Roles' },
-      { to: '/settings/notifications', label: 'Notifications' },
-      { to: '/settings/audit', label: 'Audit log' },
+      { to: '/settings', label: 'General', icon: SlidersHorizontal },
+      { to: '/settings/users', label: 'Users', icon: Users },
+      { to: '/settings/roles', label: 'Roles', icon: ShieldCheck },
+      { to: '/settings/notifications', label: 'Notifications', icon: Bell },
+      { to: '/settings/audit', label: 'Audit log', icon: History },
     ],
   },
 ];
 
-export const LEGACY_TASKS_NAV: NavChild = { to: '/tasks', label: 'Tasks' };
+export const LEGACY_TASKS_NAV: NavChild = { to: '/tasks', label: 'Tasks', icon: ClipboardList };

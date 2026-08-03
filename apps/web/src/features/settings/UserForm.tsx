@@ -31,6 +31,8 @@ const ROLE_LABEL: Record<Role, string> = {
   manager: 'Manager',
   employee: 'Employee',
   viewer: 'Viewer',
+  finance: 'Finance',
+  agent: 'Agent (AI)',
 };
 
 export function UserForm({

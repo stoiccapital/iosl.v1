@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
-import type { CreateTaskInput, Task } from '@factory/shared';
+import type { CreateTaskInput, Task, TaskRelatedType } from '@factory/shared';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -16,6 +16,7 @@ import { useCreateTask, useUpdateTask } from '../hooks/use-tasks';
 type CreateProps = {
   mode: 'create';
   trigger: React.ReactNode;
+  presetContext?: { relatedType: TaskRelatedType; relatedId: string } | undefined;
 };
 
 type EditProps = {
@@ -32,9 +33,12 @@ export function TaskDialog(props: Props) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{props.trigger}</DialogTrigger>
-      <DialogContent>
+      <DialogContent className="sm:max-w-xl">
         {props.mode === 'create' ? (
-          <CreateBody onDone={() => setOpen(false)} />
+          <CreateBody
+            presetContext={props.presetContext}
+            onDone={() => setOpen(false)}
+          />
         ) : (
           <EditBody task={props.task} onDone={() => setOpen(false)} />
         )}
@@ -43,7 +47,13 @@ export function TaskDialog(props: Props) {
   );
 }
 
-function CreateBody({ onDone }: { onDone: () => void }) {
+function CreateBody({
+  presetContext,
+  onDone,
+}: {
+  presetContext?: { relatedType: TaskRelatedType; relatedId: string } | undefined;
+  onDone: () => void;
+}) {
   const create = useCreateTask();
 
   const handleSubmit = (values: CreateTaskInput) => {
@@ -67,6 +77,7 @@ function CreateBody({ onDone }: { onDone: () => void }) {
         <DialogDescription>Fill in the details and save.</DialogDescription>
       </DialogHeader>
       <TaskForm
+        presetContext={presetContext}
         onSubmit={handleSubmit}
         onCancel={onDone}
         submitting={create.isPending}

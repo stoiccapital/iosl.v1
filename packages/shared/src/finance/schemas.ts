@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { MoneyCentsSchema } from '../common/money';
 
-export const CostSourceSchema = z.enum(['supplier', 'payroll']);
+export const CostSourceSchema = z.enum(['supplier', 'payroll', 'expense']);
 export type CostSource = z.infer<typeof CostSourceSchema>;
 
 export const CostCategorySchema = z.enum([

@@ -12,7 +12,15 @@ export const billingHandlers = [
     },
     createSchema: CreateSubscriptionInputSchema,
     updateSchema: CreateSubscriptionInputSchema.partial(),
-    applyCreate: (input) => ({ id: uuid(), ...input, createdAt: iso(), updatedAt: iso() }),
+    applyCreate: (input) => ({
+      id: uuid(),
+      ...input,
+      paymentLinkUrl: null,
+      activatedAt: null,
+      activatedById: null,
+      createdAt: iso(),
+      updatedAt: iso(),
+    }),
     applyUpdate: (current, input) => mergeDefined({ ...current, updatedAt: iso() }, input),
   }),
   ...crudHandlers({

@@ -1,7 +1,9 @@
 import { http, HttpResponse } from 'msw';
+import { isInvoluntaryChurn } from '@factory/shared';
 import type { AtRiskAccountRow, ChurnView, ChurnedCustomerRow } from '@factory/shared';
 import { db } from '../db';
 import { toBps } from '../lib/saas-metrics';
+import { activeCustomersCount, activeMrrCents } from '../lib/aggregates';
 
 const WINDOW_DAYS = 90;
 
@@ -20,10 +22,8 @@ export const churnHandlers = [
       (c) => !c.active && c.churnedAt && new Date(c.churnedAt).getTime() >= cutoff,
     );
     const churnedMrrCents = churnedInWindow.reduce((s, c) => s + c.mrrCents, 0);
-    const activeMrrNow = db.customers
-      .filter((c) => c.active)
-      .reduce((s, c) => s + c.mrrCents, 0);
-    const activeCountNow = db.customers.filter((c) => c.active).length;
+    const activeMrrNow = activeMrrCents(db);
+    const activeCountNow = activeCustomersCount(db);
 
     const monthlyLogoChurn =
       activeCountNow + churnedInWindow.length === 0
@@ -53,7 +53,7 @@ export const churnHandlers = [
       })
       .sort((a, b) => (a.churnedAt < b.churnedAt ? 1 : -1));
 
-    // ---------- By reason ----------
+    // ---------- By reason (voluntary + involuntary) ----------
     const reasonMap = new Map<string, { count: number; mrrCents: number }>();
     for (const c of churnedInWindow) {
       const key = c.churnReason ?? 'other';
@@ -65,6 +65,22 @@ export const churnHandlers = [
     const byReason = [...reasonMap.entries()]
       .map(([reason, v]) => ({ reason, count: v.count, mrrCents: v.mrrCents }))
       .sort((a, b) => b.mrrCents - a.mrrCents);
+
+    // Voluntary vs involuntary — surfaced separately so dunning-driven churn
+    // doesn't hide inside the "price/lack_of_use/…" volume.
+    let involuntaryCount = 0;
+    let involuntaryMrrCents = 0;
+    let voluntaryCount = 0;
+    let voluntaryMrrCents = 0;
+    for (const c of churnedInWindow) {
+      if (isInvoluntaryChurn(c.churnReason)) {
+        involuntaryCount += 1;
+        involuntaryMrrCents += c.mrrCents;
+      } else {
+        voluntaryCount += 1;
+        voluntaryMrrCents += c.mrrCents;
+      }
+    }
 
     // ---------- At-risk accounts (reuses the Customer Success scoring) ----------
     const atRisk: AtRiskAccountRow[] = [];
@@ -110,6 +126,10 @@ export const churnHandlers = [
       churnedMrrCents,
       logoChurnBps: toBps(monthlyLogoChurn),
       revenueChurnBps: toBps(monthlyRevenueChurn),
+      voluntaryCount,
+      voluntaryMrrCents,
+      involuntaryCount,
+      involuntaryMrrCents,
       atRiskCount: atRisk.length,
       atRiskMrrCents,
       churned,

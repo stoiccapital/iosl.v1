@@ -1,87 +1,83 @@
 import { Link } from 'react-router-dom';
-import type { CandidateStage, OpportunityStage } from '@factory/shared';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatCurrencyEUR, formatNumber } from '@/lib/format';
+import {
+  formatCurrencyEUR,
+  formatNumber,
+  formatPercent,
+  formatWithUnit,
+} from '@/lib/format';
 import { useCurrentUser } from '@/features/auth/hooks/use-current-user';
-import { opportunityHooks } from '@/features/crm/opportunities/hooks';
-import { candidateHooks, positionHooks } from '@/features/recruiting/hooks';
-import { useCostSummary, useRevenueSummary } from '@/features/finance/hooks';
-import { assignmentHooks, projectHooks } from '@/features/projects/hooks';
-import { usePeople } from '@/features/directory/hooks';
-import { compensationEventHooks } from '@/features/compensation/hooks';
+import { useDashboard } from '@/features/bi/hooks';
 
+const EMPTY = '—';
+
+/**
+ * Every metric on the dashboard is either:
+ *   - a real measurement (rendered as a formatted number), OR
+ *   - not-computable (rendered as em-dash — never 0)
+ *
+ * `favorable` encodes which direction is good. It's silent today (no delta
+ * indicator is shown) but the wiring is here so a future MoM delta card
+ * colors down-is-green for churn/cost and up-is-green for MRR/NRR/etc.
+ */
 function Stat({
   label,
   value,
   hint,
   to,
+  favorable = 'up',
 }: {
   label: string;
-  value: string;
+  value: string | null;
   hint?: string;
   to: string;
+  favorable?: 'up' | 'down';
 }) {
+  const display = value ?? EMPTY;
+  const isEmpty = value === null;
   return (
-    <Link to={to} className="block h-full">
+    <Link
+      to={to}
+      className="block h-full"
+      data-favorable={favorable}
+      aria-label={`${label}: ${isEmpty ? 'no data' : display}`}
+    >
       <Card className="flex h-full flex-col transition-colors hover:bg-accent/40">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium">{label}</CardTitle>
           <CardDescription className="min-h-[1rem]">{hint ?? '\u00A0'}</CardDescription>
         </CardHeader>
         <CardContent className="mt-auto">
-          <div className="font-mono text-2xl tabular-nums">{value}</div>
+          <div
+            className={`font-mono text-2xl tabular-nums ${isEmpty ? 'text-muted-foreground' : ''}`}
+          >
+            {display}
+          </div>
         </CardContent>
       </Card>
     </Link>
   );
 }
 
+function currencyOrEmpty(cents: number | null): string | null {
+  return cents === null ? null : formatCurrencyEUR(cents / 100);
+}
+
+function percentFromBps(bps: number | null, fractionDigits = 1): string | null {
+  return bps === null ? null : formatPercent(bps / 100, fractionDigits);
+}
+
+function monthsOrLabel(months: number | null, infinite: boolean): string | null {
+  if (infinite) return '∞';
+  if (months === null) return null;
+  return formatWithUnit(months, 'mo', 1);
+}
+
 export function HomePage() {
   const { data: user } = useCurrentUser();
-  const revenue = useRevenueSummary();
-  const costs = useCostSummary();
-  const opportunities = opportunityHooks.useList();
-  const positions = positionHooks.useList();
-  const candidates = candidateHooks.useList();
-  const projects = projectHooks.useList();
-  const assignments = assignmentHooks.useList();
-  const people = usePeople();
-  const compEvents = compensationEventHooks.useList();
-
-  const openOppStages: OpportunityStage[] = ['qualified', 'trial', 'decision'];
-  const openOpps = (opportunities.data ?? []).filter((o) => openOppStages.includes(o.stage));
-  const pipelineCents = openOpps.reduce((n, o) => n + o.amountCents, 0);
-
-  const openPositions = (positions.data ?? []).filter((p) => p.status === 'open');
-  const openPositionsCount = openPositions.reduce((n, p) => n + p.openings, 0);
-
-  const activeCandidateStages: CandidateStage[] = ['applied', 'screen', 'interview', 'offer'];
-  const activeCandidates = (candidates.data ?? []).filter((c) =>
-    activeCandidateStages.includes(c.stage),
-  );
-
-  const activeProjects = (projects.data ?? []).filter((p) => p.status === 'active');
-  const activeAssignments = (assignments.data ?? []).filter((a) => a.status === 'active');
-  const headcount = (people.data ?? []).filter((p) => p.type !== 'candidate').length;
-
-  const mrrCents = revenue.data?.mrrCents ?? 0;
-  const monthlyCostCents = costs.data?.monthlyCents ?? 0;
-  const netCents = mrrCents - monthlyCostCents;
-
-  const unpaidCompCents = (compEvents.data ?? [])
-    .filter((e) => e.status === 'earned' || e.status === 'approved')
-    .reduce((s, e) => s + e.amountCents, 0);
-
-  const isLoading =
-    revenue.isLoading ||
-    costs.isLoading ||
-    opportunities.isLoading ||
-    positions.isLoading ||
-    candidates.isLoading ||
-    projects.isLoading ||
-    assignments.isLoading ||
-    people.isLoading;
+  const dashboard = useDashboard();
+  const d = dashboard.data;
 
   return (
     <main className="container py-8">
@@ -94,7 +90,7 @@ export function HomePage() {
         </p>
       </header>
 
-      {isLoading && (
+      {dashboard.isLoading && (
         <div className="grid gap-4 md:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <Skeleton key={i} className="h-28" />
@@ -102,25 +98,44 @@ export function HomePage() {
         </div>
       )}
 
-      {!isLoading && (
+      {d && (
         <div className="space-y-8">
           <section>
             <h2 className="text-muted-foreground mb-3 text-xs font-semibold uppercase tracking-wide">
               Finance
             </h2>
-            <div className="grid gap-4 md:grid-cols-3">
-              <Stat label="MRR" value={formatCurrencyEUR(mrrCents / 100)} hint="Monthly recurring" to="/finance/revenue" />
+            <div className="grid gap-4 md:grid-cols-4">
+              <Stat
+                label="MRR"
+                value={currencyOrEmpty(d.finance.mrrCents)}
+                hint="Monthly recurring"
+                to="/finance/revenue"
+                favorable="up"
+              />
               <Stat
                 label="Monthly cost"
-                value={formatCurrencyEUR(monthlyCostCents / 100)}
-                hint="Supplier + payroll"
+                value={currencyOrEmpty(d.finance.monthlyCostCents)}
+                hint="Supplier + payroll + comp"
                 to="/finance/costs"
+                favorable="down"
               />
               <Stat
                 label="Net monthly"
-                value={formatCurrencyEUR(netCents / 100)}
+                value={
+                  d.finance.netMonthlyCents === null
+                    ? null
+                    : formatCurrencyEUR(d.finance.netMonthlyCents / 100)
+                }
                 hint="MRR − cost"
                 to="/bi/costs"
+                favorable="up"
+              />
+              <Stat
+                label="Runway"
+                value={monthsOrLabel(d.finance.runwayMonths, d.finance.runwayInfinite)}
+                hint={d.finance.runwayInfinite ? 'Cash-positive' : 'Cash ÷ burn'}
+                to="/bi/costs"
+                favorable="up"
               />
             </div>
           </section>
@@ -132,20 +147,51 @@ export function HomePage() {
             <div className="grid gap-4 md:grid-cols-3">
               <Stat
                 label="Open opportunities"
-                value={formatNumber(openOpps.length)}
-                hint="Qualified · Trial · Decision"
+                value={formatNumber(d.sales.openOppsCount)}
+                hint="Qualified · Trial · Decision · Proposal"
                 to="/crm/opportunities"
+                favorable="up"
               />
               <Stat
                 label="Open pipeline"
-                value={formatCurrencyEUR(pipelineCents / 100)}
-                hint="Weighted by amount"
+                value={currencyOrEmpty(d.sales.openPipelineWeightedCents)}
+                hint="Probability-weighted"
                 to="/crm/opportunities"
+                favorable="up"
               />
               <Stat
                 label="Active customers"
-                value={formatNumber(revenue.data?.activeCustomers ?? 0)}
+                value={formatNumber(d.sales.activeCustomersCount)}
                 to="/crm/customers"
+                favorable="up"
+              />
+              <Stat
+                label="NRR (6 mo)"
+                value={percentFromBps(d.sales.nrrBps)}
+                hint="Starting cohort"
+                to="/bi/revenue"
+                favorable="up"
+              />
+              <Stat
+                label="GRR (6 mo)"
+                value={percentFromBps(d.sales.grrBps)}
+                hint="Starting cohort, ex-expansion"
+                to="/bi/revenue"
+                favorable="up"
+              />
+              <Stat
+                label="ARPA"
+                value={currencyOrEmpty(d.sales.arpaCents)}
+                hint="MRR ÷ active customers"
+                to="/crm/customers"
+                favorable="up"
+              />
+              <Stat
+                label={`Churned MRR (${d.windowDays} d)`}
+                value={formatCurrencyEUR(d.retention.churnedMrrCents / 100)}
+                hint={`${formatNumber(d.retention.voluntaryChurnLogos)} voluntary · ${formatNumber(d.retention.involuntaryChurnLogos)} involuntary`}
+                to="/crm/churn"
+                favorable="down"
               />
             </div>
           </section>
@@ -154,15 +200,39 @@ export function HomePage() {
             <h2 className="text-muted-foreground mb-3 text-xs font-semibold uppercase tracking-wide">
               People
             </h2>
-            <div className="grid gap-4 md:grid-cols-4">
-              <Stat label="Headcount" value={formatNumber(headcount)} hint="Employees + freelancers" to="/hr/employees" />
-              <Stat label="Open positions" value={formatNumber(openPositionsCount)} to="/recruiting/positions" />
-              <Stat label="Candidates in pipeline" value={formatNumber(activeCandidates.length)} to="/recruiting/candidates" />
+            <div className="grid gap-4 md:grid-cols-5">
+              <Stat
+                label="Headcount"
+                value={formatNumber(d.people.headcount)}
+                hint="Employees + freelancers"
+                to="/hr/employees"
+                favorable="up"
+              />
+              <Stat
+                label="Open positions"
+                value={formatNumber(d.people.openPositionsCount)}
+                to="/recruiting/positions"
+                favorable="up"
+              />
+              <Stat
+                label="Candidates in pipeline"
+                value={formatNumber(d.people.activeCandidatesCount)}
+                to="/recruiting/candidates"
+                favorable="up"
+              />
               <Stat
                 label="Unpaid commissions"
-                value={formatCurrencyEUR(unpaidCompCents / 100)}
+                value={formatCurrencyEUR(d.people.unpaidCommissionCents / 100)}
                 hint="Earned + approved, not paid"
                 to="/hr/compensation"
+                favorable="down"
+              />
+              <Stat
+                label="Revenue per employee"
+                value={currencyOrEmpty(d.people.revenuePerEmployeeCents)}
+                hint="ARR ÷ headcount"
+                to="/hr/employees"
+                favorable="up"
               />
             </div>
           </section>
@@ -172,18 +242,25 @@ export function HomePage() {
               Delivery
             </h2>
             <div className="grid gap-4 md:grid-cols-3">
-              <Stat label="Active projects" value={formatNumber(activeProjects.length)} to="/projects" />
+              <Stat
+                label="Active projects"
+                value={formatNumber(d.delivery.activeProjectsCount)}
+                to="/projects"
+                favorable="up"
+              />
               <Stat
                 label="Active assignments"
-                value={formatNumber(activeAssignments.length)}
+                value={formatNumber(d.delivery.activeAssignmentsCount)}
                 hint="People allocated to projects"
                 to="/projects"
+                favorable="up"
               />
               <Stat
                 label="Line-item costs"
-                value={formatNumber(costs.data?.items.length ?? 0)}
+                value={formatNumber(d.delivery.costItemsCount)}
                 hint="Active contracts + monthly payroll"
                 to="/bi/costs"
+                favorable="up"
               />
             </div>
           </section>

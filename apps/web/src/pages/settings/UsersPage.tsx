@@ -20,6 +20,8 @@ const ROLE_LABEL: Record<Role, string> = {
   manager: 'Manager',
   employee: 'Employee',
   viewer: 'Viewer',
+  finance: 'Finance',
+  agent: 'Agent (AI)',
 };
 
 const ROLE_VARIANT: Record<Role, 'default' | 'secondary' | 'outline' | 'destructive'> = {
@@ -27,6 +29,8 @@ const ROLE_VARIANT: Record<Role, 'default' | 'secondary' | 'outline' | 'destruct
   manager: 'secondary',
   employee: 'outline',
   viewer: 'outline',
+  finance: 'secondary',
+  agent: 'outline',
 };
 
 export function UsersPage() {

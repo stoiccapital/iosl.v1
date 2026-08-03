@@ -22,7 +22,7 @@ export function OpportunityDialog(
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{props.trigger}</DialogTrigger>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent className="sm:max-w-4xl">
         {props.mode === 'create' ? (
           <Create onDone={() => setOpen(false)} />
         ) : (

@@ -103,3 +103,30 @@ export function formatDate(input: string | Date): string {
 export function formatDateTime(input: string | Date): string {
   return dateTimeFmt.format(typeof input === 'string' ? new Date(input) : input);
 }
+
+/**
+ * Human-scannable relative time ("5 min ago", "yesterday", "3 mo ago").
+ * Prefer this over `formatDateTime` in note lists / audit lines. Put the
+ * absolute date/time in the element's `title` attribute for hover-precision.
+ */
+export function formatRelative(input: string | Date, now: Date = new Date()): string {
+  const then = typeof input === 'string' ? new Date(input) : input;
+  const diffMs = now.getTime() - then.getTime();
+  const future = diffMs < 0;
+  const abs = Math.abs(diffMs);
+  const sec = Math.round(abs / 1000);
+  if (sec < 30) return 'just now';
+  const min = Math.round(sec / 60);
+  if (min < 60) return future ? `in ${min} min` : `${min} min ago`;
+  const hr = Math.round(min / 60);
+  if (hr < 24) return future ? `in ${hr} h` : `${hr} h ago`;
+  const day = Math.round(hr / 24);
+  if (day === 1) return future ? 'tomorrow' : 'yesterday';
+  if (day < 7) return future ? `in ${day} days` : `${day} days ago`;
+  const week = Math.round(day / 7);
+  if (week < 5) return future ? `in ${week} wk` : `${week} wk ago`;
+  const mo = Math.round(day / 30);
+  if (mo < 12) return future ? `in ${mo} mo` : `${mo} mo ago`;
+  const yr = Math.round(day / 365);
+  return future ? `in ${yr} yr` : `${yr} yr ago`;
+}

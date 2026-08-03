@@ -1,5 +1,8 @@
 import type {
   Account,
+  AccountContact,
+  AccountContactNote,
+  AccountNote,
   Assignment,
   AuditEntry,
   Campaign,
@@ -12,6 +15,7 @@ import type {
   Customer,
   Device,
   Doc,
+  Expense,
   Feature,
   Incident,
   Invoice,
@@ -28,6 +32,7 @@ import type {
   Release,
   SoftwareLicense,
   Subscription,
+  SubscriptionTransition,
   Supplier,
   Task,
   Ticket,
@@ -53,6 +58,9 @@ export type Db = {
   tasks: Task[];
   leads: Lead[];
   accounts: Account[];
+  accountNotes: AccountNote[];
+  accountContacts: AccountContact[];
+  accountContactNotes: AccountContactNote[];
   opportunities: Opportunity[];
   customers: Customer[];
   suppliers: Supplier[];
@@ -65,7 +73,9 @@ export type Db = {
   timeEntries: TimeEntry[];
   tickets: Ticket[];
   subscriptions: Subscription[];
+  subscriptionTransitions: SubscriptionTransition[];
   invoices: Invoice[];
+  expenses: Expense[];
   features: Feature[];
   releases: Release[];
   incidents: Incident[];
@@ -99,6 +109,9 @@ export const db: Db = {
   tasks: [],
   leads: [],
   accounts: [],
+  accountNotes: [],
+  accountContacts: [],
+  accountContactNotes: [],
   opportunities: [],
   customers: [],
   suppliers: [],
@@ -111,7 +124,9 @@ export const db: Db = {
   timeEntries: [],
   tickets: [],
   subscriptions: [],
+  subscriptionTransitions: [],
   invoices: [],
+  expenses: [],
   features: [],
   releases: [],
   incidents: [],

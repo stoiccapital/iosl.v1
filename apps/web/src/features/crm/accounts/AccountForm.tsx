@@ -45,6 +45,7 @@ export function AccountForm({
       size: defaultValues?.size ?? '11-50',
       country: defaultValues?.country ?? '',
       website: defaultValues?.website ?? null,
+      summaryNote: defaultValues?.summaryNote ?? '',
     },
   });
 
